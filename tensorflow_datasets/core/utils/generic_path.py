@@ -32,7 +32,6 @@ ReadWritePath = type_utils.ReadWritePath
 _PATHLIKE_CLS = (
     gpath.GPath,
     resource_utils.ResourcePath,
-    pathlib.Path,
 )
 
 
@@ -47,16 +46,27 @@ def as_path(path: PathLike) -> ReadWritePath:
   Returns:
     path: The `pathlib.Path`-like abstraction.
   """
+  is_windows = os.name == 'nt'
   if isinstance(path, str):
-    if os.name == 'nt' and not path.startswith('gs://'):
+    if is_windows and not path.startswith('gs://'):
       # On windows, all path are `pathlib.WindowsPath`, as `gpath.GPath` is
       # `PosixPurePath`
-      return pathlib.Path(path)
+      return Utf8WindowsPath(path)
     else:
       return gpath.GPath(path)  # On linux, or for `gs://`, uses `GPath`
   elif isinstance(path, _PATHLIKE_CLS):
     return path  # Forward resource path, gpath,... as-is
   elif isinstance(path, os.PathLike):  # Other `os.fspath` compatible objects
-    return pathlib.Path(path)
+    path_cls = Utf8WindowsPath if is_windows else gpath.GPath
+    return path_cls(path)
   else:
     raise TypeError(f'Invalid path type: {path!r}')
+
+
+class Utf8WindowsPath(pathlib.WindowsPath):
+  """Same as `pathlib.WindowsPath`, but uses UTF-8 for read/write."""
+
+  def open(self, mode, encoding, **kwargs):
+    # Hopefully, UTF-8 will become the default in windows sometime before I
+    # die and this hack could be removed (see PEP 597).
+    return super().open(mode=mode, encoding='utf-8', **kwargs)
