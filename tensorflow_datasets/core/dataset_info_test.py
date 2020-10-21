@@ -90,14 +90,9 @@ class DatasetInfoTest(testing.TestCase):
       info.read_from_directory(None)
 
   def test_non_existent_dir(self):
-    # The error messages raised by Windows is different from Unix.
-    if os.name == "nt":
-      err = "The system cannot find the path specified"
-    else:
-      err = "No such file or dir"
     info = dataset_info.DatasetInfo(builder=self._builder)
     with self.assertRaisesWithPredicateMatch(
-        tf.errors.NotFoundError, err):
+        FileNotFoundError, "from a directory which does not exist"):
       info.read_from_directory(_NON_EXISTENT_DIR)
 
   def test_reading(self):
